@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "memory")(type "KiCad")(uri "${KIPRJMOD}/memory.kicad_sym")(options "")(descr ""))
+  (lib (name "MicroMod-Sparkfun")(type "KiCad")(uri "${KIPRJMOD}/../../caravel_board/hardware/symbols/MicroMod-Sparkfun.kicad_sym")(options "")(descr ""))
+)
