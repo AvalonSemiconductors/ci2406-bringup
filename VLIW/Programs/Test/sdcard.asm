@@ -1,3 +1,7 @@
+	SECTION SDCARD
+	PUBLIC sdcard_init
+	PUBLIC sdcard_read_block
+	PUBLIC sd_capacity
 	align 16
 	; Compute CRC7
 	; Args: byte, crc7
@@ -106,7 +110,7 @@ sd_res7:
 	jalr zero, r60, 0
 	---
 
-	; Waits for the SD card to be idle (all 0xFF on the bus)
+	; Waits for the SD card to be idle (all 0xFsd_cmdF on the bus)
 	; Args: none
 	; Uses: r1
 sd_wait_ready:
@@ -184,29 +188,29 @@ sd_cmd:
 	cpy r4, r17
 	---
 	; sd_crc7(cmd, &crc);
-	lli r8, (sd_crc7-$)>>4 #
-	lipc r8, r8 #
-	jalr r60, r8, 0
+	lli r7, (sd_crc7-$)>>4 #
+	lipc r7, r7 #
+	jalr r60, r7, 0
 	---
 	; sd_crc7(arg >> 24, &crc);
 	nop
 	srli r16, r4, 24
-	jalr r60, r8, 0
+	jalr r60, r7, 0
 	---
 	; sd_crc7(arg >> 16, &crc);
 	nop
 	srli r16, r4, 16
-	jalr r60, r8, 0
+	jalr r60, r7, 0
 	---
 	; sd_crc7(arg >> 8, &crc);
 	nop
 	srli r16, r4, 8
-	jalr r60, r8, 0
+	jalr r60, r7, 0
 	---
 	; sd_crc7(arg, &crc);
 	nop
 	cpy r16, r4
-	jalr r60, r8, 0
+	jalr r60, r7, 0
 	---
 	; crc = (crc << 1) | 1;
 	add r17, r17, r17 #
@@ -974,6 +978,7 @@ sdcard_init_fail:
 	; Args: byte buffer ptr, block address
 	; Returns: error code (r2)
 	; ADDRESS MUST BE WORD-ALIGNED!
+	; Uses: r1, r2, r3, r4, r5, r6, r7
 sdcard_read_block:
 	sw r60, 0(r61)
 	subi r61, r61, 12
@@ -1022,7 +1027,7 @@ sdcard_read_block_loop:
 	slli r1, r1, 8 #
 	or r1, r2, r1
 	---
-	sw r1, 0(r25)
+	sh r1, 0(r25)
 	addi r25, r25, 2
 	---
 	
@@ -1107,3 +1112,4 @@ text_sd_fail_capacity:
 sd_capacity:
 	dd 0
 	dd 0
+	ENDSECTION

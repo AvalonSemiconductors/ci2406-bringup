@@ -106,44 +106,6 @@ start:
 	jalr r60, r60, (sdcard_init-$)>>4
 	---
 	
-	xor r17, r17, r17
-	lui r16, byte_buff>>16
-	lliu r16, byte_buff&0xFFFF
-	---
-	lipc r60, zero #
-	jalr r60, r60, (sdcard_read_block-$)>>4
-	---
-	lui r18, byte_buff>>16
-	lliu r18, byte_buff&0xFFFF
-	---
-	lui r17, 0
-	lli r17, 511
-	---
-print_loop:
-	lb r16, 0(r18)
-	addi r18, r18, 1
-	---
-	lipc r60, zero #
-	jalr r60, r60, (puthex8-$)>>4
-	---
-	lli r16, ' '
-	lipc r60, zero #
-	jalr r60, r60, (putchar_cachef-$)>>4
-	---
-	andi r1, r17, 15 #
-	bnez r1, print_loop_cond
-	---
-	lipc r60, zero #
-	jalr r60, r60, (newl-$)>>4
-	---
-print_loop_cond:
-	subi r17, r17, 1
-	bnez r17, print_loop
-	---
-	lipc r60, zero #
-	jalr r60, r60, (newl-$)>>4
-	---
-	
 	lipc r60, zero #
 	jalr r60, r60, (parse_mbr-$)>>4
 	---
@@ -177,6 +139,61 @@ print_loop_cond:
 	---
 	lipc r60, zero #
 	jalr r60, r60, (newl_cachef-$)>>4
+	---
+	
+;	lliu r17, ext4_partition_start&0xFFFF
+;	lui r17, ext4_partition_start>>16 #
+;	lw r17, 0(r17)
+;	---
+;	addi r17, r17, 2
+;	lui r16, byte_buff>>16
+;	lliu r16, byte_buff&0xFFFF
+;	---
+;	lipc r60, zero #
+;	jalr r60, r60, (sdcard_read_block-$)>>4
+;	---
+;	lui r18, byte_buff>>16
+;	lliu r18, byte_buff&0xFFFF
+;	---
+;	lui r17, 0
+;	lli r17, 255
+;	---
+;print_loop:
+;	lh r1, 0(r18)
+;	addi r18, r18, 2
+;	---
+;	cpy r16, r1
+;	lipc r60, zero #
+;	jalr r60, r60, (puthex8-$)>>4
+;	---
+;	lli r16, ' '
+;	lipc r60, zero #
+;	jalr r60, r60, (putchar_cachef-$)>>4
+;	---
+;	srli r16, r1, 8
+;	lipc r60, zero #
+;	jalr r60, r60, (puthex8-$)>>4
+;	---
+;	lli r16, ' '
+;	lipc r60, zero #
+;	jalr r60, r60, (putchar_cachef-$)>>4
+;	---
+;	andi r1, r17, 7 #
+;	bnez r1, print_loop_cond
+;	---
+;	lipc r60, zero #
+;	jalr r60, r60, (newl-$)>>4
+;	---
+;print_loop_cond:
+;	subi r17, r17, 1
+;	bnez r17, print_loop
+;	---
+;	lipc r60, zero #
+;	jalr r60, r60, (newl-$)>>4
+;	---
+	
+	lipc r60, zero #
+	jalr r60, r60, (ext4_mount-$)>>4
 	---
 blink:
 	lui r24, test_var>>16
@@ -259,9 +276,9 @@ string_1:
 hex_chars:
 	db "0123456789ABCDEF"
 text_partition_not_found:
-	db 0x1B,"[1;31m","ext4 partition not found, can’t continue",0x1B,"[0m",13,10,0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] ext4 partition not found, can’t continue",13,10,0
 text_partition_found:
-	db "ext4 partition found at ",0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] ext4 partition found at ",0
 text_partition_found2:
 	db " with size ",0
 	align 4

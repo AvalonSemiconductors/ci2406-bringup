@@ -223,7 +223,7 @@ int main(int argc, char** argv, char** env) {
 	top.clk = 0;
 	top.rst = 1;
 	int ctr = 0;
-	while(!Verilated::gotFinish() && ctr < 1048576+65536) {
+	while(!Verilated::gotFinish() && ctr < 1048576*12) {
 		Verilated::timeInc(1);
 		top.eval();
 		top.clk = !top.clk;
