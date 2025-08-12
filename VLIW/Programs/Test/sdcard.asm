@@ -346,10 +346,10 @@ SD_CMD24 equ 24
 sdcard_init:
 	lliu r1, sd_capacity&0xFFFF
 	lui r1, sd_capacity>>16 #
-	sw r0, 0(r1)
+	sw zero, 0(r1)
 	---
-	sw r60, 0(r61)
-	subi r61, r61, 12
+	subi r61, r61, 12 #
+	sw r60, 12(r61)
 	---
 	sw r24, 4(r61) #
 	sw r25, 8(r61)
@@ -875,11 +875,11 @@ sd_cmd9_pass:
 
 sdcard_init_return:
 	lw r24, 4(r61) #
-	lw r25, 8(r61)
+	lw r60, 12(r61)
 	---
 	; Return
-	lw r60, 12(r61)
-	addi r61, r61, 12 #
+	lw r25, 8(r61)
+	addi r61, r61, 12
 	jalr zero, r60, 0
 	---
 
@@ -980,8 +980,8 @@ sdcard_init_fail:
 	; ADDRESS MUST BE WORD-ALIGNED!
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 sdcard_read_block:
-	sw r60, 0(r61)
-	subi r61, r61, 12
+	subi r61, r61, 12 #
+	sw r60, 12(r61)
 	---
 	sw r24, 4(r61) #
 	sw r25, 8(r61)
@@ -1049,11 +1049,11 @@ sdcard_read_block_loop:
 sdcard_read_block_return:
 	cpy r16, r25
 	lw r24, 4(r61) #
-	lw r25, 8(r61)
+	lw r60, 12(r61)
 	---
 	; Return
-	lw r60, 12(r61)
-	addi r61, r61, 12 #
+	lw r25, 8(r61)
+	addi r61, r61, 12
 	jalr zero, r60, 0
 	---
 sdcard_read_block_fail:
@@ -1063,51 +1063,51 @@ sdcard_read_block_fail:
 	---
 
 text_sd_cmd0:
-	db "SD: CMD0",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] CMD0",13,10,0
 text_sd_cmd0_fail:
-	db 0x1B,"[1;31m","CMD0 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD0 FAIL ",0
 text_sd_cmd0_timeout:
-	db 0x1B,"[1;31m","CMD0 TIMEOUT",0x1B,"[0m",13,10,0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD0 TIMEOUT",0x1B,"[0m",13,10,0
 text_sd_cmd8:
-	db "SD: CMD8",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] CMD8",13,10,0
 text_sd_cmd8_fail:
-	db 0x1B,"[1;31m","CMD8 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD8 FAIL ",0
 text_sd_cmd8_bad_response:
-	db 0x1B,"[1;31m","BAD CMD8 RESPONSE ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] BAD CMD8 RESPONSE ",0
 text_sd_cmd58:
-	db "SD: CMD58",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] CMD58",13,10,0
 text_sd_cmd58_fail:
-	db 0x1B,"[1;31m","CMD58 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD58 FAIL ",0
 text_sd_cmd58_bad_response:
-	db 0x1B,"[1;31m","BAD CMD58 RESPONSE ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] BAD CMD58 RESPONSE ",0
 text_sd_acmd41:
-	db "SD: ACMD41",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] ACMD41",13,10,0
 text_sd_acmd41_timeout:
-	db 0x1B,"[1;31m","ACMD41 TIMEOUT",0x1B,"[0m",13,10,0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] ACMD41 TIMEOUT",0x1B,"[0m",13,10,0
 text_sd_acmd41_fail:
-	db 0x1B,"[1;31m","ACMD41 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] ACMD41 FAIL ",0
 text_sd_cap:
-	db 0x1B,"[1;32m","SD Card type is SDXC or SDHC",0x1B,"[0m",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] ",0x1B,"[1;32m","SD Card type is SDXC or SDHC",0x1B,"[0m",13,10,0
 text_sd_cmd59:
-	db "SD: CMD59",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] CMD59",13,10,0
 text_sd_cmd59_fail:
-	db 0x1B,"[1;31m","CMD59 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD59 FAIL ",0
 text_sd_cmd16:
-	db "SD: CMD16",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] CMD16",13,10,0
 text_sd_cmd16_fail:
-	db 0x1B,"[1;31m","CMD16 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD16 FAIL ",0
 text_sd_cmd9:
-	db "SD: CMD9",13,10,0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] CMD9",13,10,0
 text_sd_cmd9_fail:
-	db 0x1B,"[1;31m","CMD9 FAIL ",0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] CMD9 FAIL ",0
 text_sd_clear_color_nl:
 	db 0x1B,"[0m",13,10,0
 text_sd_capacity:
-	db "SD Capacity: ",0
+	db '[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] Capacity: ",0
 text_sd_capacity_end:
-	db "KiB",13,10,"SD: Initialized!",13,10,0
+	db "KiB",13,10,'[',0x1B,"[1;34mINFO",0x1B,"[0m] [SD] Initialized!",13,10,13,10,0
 text_sd_fail_capacity:
-	db 0x1B,"[1;31m","SD has 0 capacity. Init FAIL!",0x1B,"[0m",13,10,0
+	db '[',0x1B,"[1;31mFATAL",0x1B,"[0m] [SD] SD has 0 capacity. Init FAIL!",0x1B,"[0m",13,10,0
 	align 4
 sd_capacity:
 	dd 0

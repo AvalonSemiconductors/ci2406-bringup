@@ -1,4 +1,4 @@
-ASL_DIR = /run/media/tholin/8a6b8802-051e-45a8-8492-771202e4c08a/asl-avalonsemi
+ASL_DIR = /media/lucah/8a6b8802-051e-45a8-8492-771202e4c08a/asl-avalonsemi
 ASL = $(ASL_DIR)/asl
 P2BIN = $(ASL_DIR)/p2bin
 ARCH = VLIW

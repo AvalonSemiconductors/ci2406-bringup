@@ -7,7 +7,7 @@ putstr:
 	nop
 	---
 putstr_loop:
-	lb r15, 0(r16) #
+	lbu r15, 0(r16) #
 	bez r15, putstr_done #
 	sw r15, UDAT(r62)
 	---
@@ -27,6 +27,7 @@ putstr_done:
 
 putchar_cachef:
 	sw r1, 0(r61)
+	subi r61, r61, 4
 	---
 	sw r16, UDAT(r62)
 	---
@@ -38,6 +39,7 @@ putchar_cachef_wait_loop:
 	bnez r1, putchar_cachef_wait_loop
 	---
 putchar_cachef_done:
+	addi r61, r61, 4
 	lw r1, 0(r61)
 	jalr zero, r60, 0
 	---
@@ -131,17 +133,18 @@ puthex8_cachef:
 	; Same as puthex32, but cache-friendly
 	; (Workaround for CI2406 bug)
 puthex32_cachef:
-	sw r51, -8(r61)
+	subi r61, r61, 16
 	---
-	sw r60, 0(r61)
+	sw r51, 4(r61)
+	---
+	sw r60, 8(r61)
 	lli r51, (puthex8_cachef-$-16)>>4
 	---
-	sw r33, -4(r61)
-	subi r61, r61, 16
+	sw r33, 12(r61)
 	lipc r51, r51
 	---
 	cpy r33, r16
-	sw r16, 4(r61)
+	sw r16, 16(r61)
 	nop
 	---
 	srli r16, r33, 24
@@ -156,15 +159,14 @@ puthex32_cachef:
 	srli r16, r33, 0
 	jalr r60, r51, 0
 	---
-	lw r16, 4(r61)
+	lw r16, 16(r61)
 	---
-	lw r51, 8(r61)
+	lw r51, 4(r61)
+	---
+	lw r60, 8(r61)
+	---
+	lw r33, 12(r61)
 	addi r61, r61, 16
-	---
-	lw r60, 0(r61)
-	---
-	lw r33, -4(r61)
-	nop
 	jalr zero, r60, 0
 	---
 
@@ -173,6 +175,7 @@ puthex32_cachef:
 	; Uses: none
 newl:
 	sw r1, 0(r61)
+	subi r61, r61, 4
 	---
 	lui r1, 0
 	lliu r1, '\r' #
@@ -190,13 +193,15 @@ newl:
 	andi r1, r1, 4 #
 	bnez r1, $
 	---
-	lw r1, 0(r61)
+	lw r1, 4(r61)
+	addi r61, r61, 4
 	jalr zero, r60, 0
 	---
 
 	; Same as puthex8, but cache-friendly
 	; (Workaround for CI2406 bug)
 newl_cachef:
+	subi r61, r61, 4
 	sw r1, 0(r61)
 	---
 	lui r1, 0
@@ -222,6 +227,43 @@ newl_cachef:
 	---
 	bnez r1, $-32
 	---
-	lw r1, 0(r61)
+	addi r61, r61, 4
+	lw r1, 4(r61)
+	jalr zero, r60, 0
+	---
+
+	; Returns length of a null-terminated string
+	; Args: byte*
+	; Returns: length of string (r17)
+	; Uses: none
+strlen:
+	subi r61, r61, 8
+	---
+	xor r17, r17, r17
+	sw r16, 4(r61) #
+	sw r1, 8(r61)
+	---
+	nop
+	lli r6, 1 #
+	sw r6, ICEN(r62) ; Enable icache
+	---
+strlen_loop:
+	lbu r1, 0(r16)
+	---
+	bez r1, strlen_loop_end
+	---
+	addi r16, r16, 1
+	addi r17, r17, 1
+	bez zero, strlen_loop
+	---
+strlen_loop_end:
+	nop
+	lli r6, 0 #
+	sw r6, ICEN(r62) ; Disable icache
+	---
+	lw r16, 4(r61) #
+	lw r1, 8(r61)
+	---
+	addi r61, r61, 8
 	jalr zero, r60, 0
 	---

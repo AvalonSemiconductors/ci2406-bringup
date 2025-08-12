@@ -27,6 +27,7 @@ EXT4_OUT_OF_BOUNDS equ 17
 	PUBLIC ext4_blockbuff
 	PUBLIC ext4_open_dir
 	PUBLIC ext4_dir_next
+	PUBLIC ext4_find_file
 ext4_lbas_per_block equ 8
 ext4_log_lbas_per_block equ 3
 ext4_blocksize_bytes equ 4096
@@ -68,7 +69,8 @@ EXT4_INDEX_FL equ 0x1000
 ext4_s_extent_length equ 12
 ext4_extent_ee_block equ 0 ;u32
 ext4_extent_ee_len equ 4 ;u16
-ext4_extent_ee_start equ 6 ;u48
+ext4_extent_ee_start_hi equ 6 ;u16
+ext4_extent_ee_start_lo equ 8 ;u32
 
 ; extent index struct organization
 ext4_s_extent_index_length equ 12
@@ -120,13 +122,13 @@ ext4_extent_header_generation equ 8 ;u32
 	; Returns error code (r23)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 ext4_read_block:
-	sw r60, 0(r61) #
-	sw r24, -4(r61) #
-	sw r25, -8(r61)
+	subi r61, r61, 20 #
+	sw r60, 4(r61) #
+	sw r24, 8(r61)
 	---
-	sw r26, -12(r61) #
-	sw r16, -16(r61)
-	subi r61, r61, 20
+	sw r25, 12(r61) #
+	sw r26, 16(r61) #
+	sw r16, 20(r61)
 	---
 	xor r23, r23, r23
 	lliu r2, ext4_lastblock&0xFFFF
@@ -185,14 +187,14 @@ ext4_read_block_loop:
 	sw r24, 0(r2)
 	---
 ext4_read_block_return:
-	lw r16, 4(r61)
-	---
-	lw r26, 8(r61) #
 	lw r25, 12(r61) #
-	lw r24, 16(r61)
+	lw r60, 4(r61) #
+	lw r24, 8(r61)
 	---
-	lw r60, 20(r61) #
+	lw r26, 16(r61) #
+	lw r16, 20(r61) #
 	addi r61, r61, 20
+	---
 	jalr zero, r60, 0
 	---
 
@@ -368,12 +370,12 @@ ext4_read_inode_ret:
 	; Returns: success status (r17)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 ext4_find_next_extent:
-	sw r60, 0(r61) #
-	sw r24, -4(r61) #
-	sw r25, -8(r61)
+	subi r61, r61, 16 #
+	sw r60, 16(r61) #
+	sw r24, 12(r61)
 	---
-	sw r26, -12(r61) #
-	subi r61, r61, 16
+	sw r25, 8(r61) #
+	sw r26, 4(r61) #
 	liu r17, EXT4_OKAY
 	---
 	cpy r24, r16 ; r24 holds struct pointer
@@ -532,13 +534,13 @@ ext4_find_extent_io_err:
 	; Returns: success status (r18)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 ext4_open_read:
-	sw r60, 0(r61) #
-	sw r24, -4(r61) #
-	sw r25, -8(r61)
+	subi r61, r61, 16+ext4_s_inode_length #
+	sw r60, ext4_s_inode_length+16(r61) #
+	sw r24, ext4_s_inode_length+12(r61)
 	---
-	sw r26, -12(r61)
-	subi r61, r61, 16+ext4_s_inode_length
-	subi r26, r61, 16+ext4_s_inode_length-4 ; r26 points to the ext4_inode struct
+	sw r25, ext4_s_inode_length+8(r61) #
+	sw r26, ext4_s_inode_length+4(r61)
+	addi r26, r61, 4 ; r26 points to the ext4_inode struct
 	---
 	cpy r24, r16
 	cpy r25, r17 ; r25 now contains ext4_FIL pointer
@@ -614,16 +616,18 @@ ext4_open_read_h_okay:
 ext4_open_read_ret:
 	cpy r17, r25
 	cpy r16, r24
+	addi r61, r61, ext4_s_inode_length
 	---
-	addi r61, r61, 16+ext4_s_inode_length #
-	lw r26, -12(r61) #
-	lw r25, -8(r61)
+	lw r60, 16(r61) #
+	lw r24, 12(r61) #
+	lw r25, 8(r61)
 	---
-	lw r24, -4(r61) #
-	lw r60, 0(r61) #
+	lw r26, 4(r61)
+	addi r61, r61, 16
 	jalr zero, r60, 0
 	---
 ext4_open_read_skip:
+	cpy r1, r1
 	liu r18, EXT4_OKAY
 	bez zero, ext4_open_read_ret
 	---
@@ -631,17 +635,18 @@ ext4_open_read_skip:
 	; Args: ext4_FIL pointer, buffer pointer, no. bytes to be read
 	; Returns: success status (r19), no. bytes read (r20)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
+	; if the buffer pointer is null, nothing will be written to memory and this function acts as a skip
 ext4_read:
-	sw r60, 0(r61) #
-	sw r24, -4(r61) #
-	sw r25, -8(r61)
+	subi r61, r61, 28 #
+	sw r60, 28(r61) #
+	sw r24, 24(r61)
 	---
-	sw r26, -12(r61) #
-	sw r27, -16(r61) #
-	sw r28, -20(r61)
+	sw r25, 20(r61) #
+	sw r26, 16(r61) #
+	sw r27, 12(r61)
 	---
-	sw r29, -24(r61)
-	subi r61, r61, 28
+	sw r28, 8(r61) #
+	sw r29, 4(r61)
 	---
 	xor r20, r20, r20
 	liu r19, EXT4_OKAY
@@ -704,23 +709,23 @@ ext4_read_flag:
 	cpy r26, r1 ; extent_block = temp / blocksize
 	---
 	; Read from ee_start + extent_block
-	lw r29, ext4_FIL_curr_extent+ext4_extent_ee_start+2(r16) #
+	lw r29, ext4_FIL_curr_extent+ext4_extent_ee_start_lo(r16) #
 	add r29, r26, r29
-	sw r16, 0(r61)
-	---
-	sw r17, -4(r61) #
-	sw r18, -8(r61)
 	subi r61, r61, 12
+	---
+	sw r16, 12(r61) #
+	sw r17, 8(r61) #
+	sw r18, 4(r61)
 	---
 	cpy r16, r29
 	lipc r60, zero #
 	jalr r60, r60, (ext4_read_block-$)>>4
 	---
-	addi r61, r61, 12 #
-	lw r18, -8(r61) #
-	lw r17, -4(r61)
+	lw r16, 12(r61) #
+	lw r17, 8(r61) #
+	lw r18, 4(r61)
 	---
-	lw r16, 0(r61)
+	addi r61, r61, 12
 	cpy r19, r23
 	bnez r23, ext4_read_ret
 	---
@@ -747,24 +752,32 @@ ext4_read_not_flag:
 	cpy r4, r3 [p1]
 	---
 	; memcpy(buff, ext4_blockbuff + block_pos, remaining);
-	cpy r1, r4 #
-	subi r1, r1, 1
+	cpy r1, r4
 	lliu r2, ext4_blockbuff&0xFFFF
 	---
 	lui r2, ext4_blockbuff>>16 #
 	add r2, r2, r27
+	bez r17, ext4_read_skip
 	---
-	; TODO: enable icache JUST for this loop
 	; TODO: use word loads/stores
+	nop
+	lli r6, 1 #
+	sw r6, ICEN(r62) ; Enable icache
+	---
 ext4_read_copy_loop: ; implicitely: buff += remaining
 	lb r3, 0(r2)
-	addi r2, r2, 1
+	subi r1, r1, 1
 	addi r17, r17, 1
 	---
 	sb r3, -1(r17)
-	subi r1, r1, 1
+	addi r2, r2, 1
 	bnez r1, ext4_read_copy_loop
 	---
+	nop
+	lli r6, 0 #
+	sw r6, ICEN(r62) ; Disable icache
+	---
+ext4_read_skip:
 	add r27, r27, r4 ; block_pos += remaining
 	; position += remaining
 	lw r1, ext4_FIL_position(r16) #
@@ -804,26 +817,26 @@ ext4_read_skp2:
 	bez zero, ext4_read_loop
 	---
 ext4_read_case1: ; if(extent_block >= ext_len)
-	sw r16, 0(r61) #
-	sw r17, -4(r61) #
-	sw r18, -8(r61)
+	subi r61, r61, 20 #
+	sw r16, 20(r61) #
+	sw r17, 16(r61)
 	---
-	sw r19, -12(r61) #
-	sw r20, -16(r61) #
-	subi r61, r61, 20
+	sw r18, 12(r61) #
+	sw r19, 8(r61) #
+	sw r20, 4(r61)
 	---
 	lipc r60, zero #
 	jalr r60, r60, (ext4_find_next_extent-$)>>4
 	---
 	cpy r1, r17
-	addi r61, r61, 20 #
-	lw r18, -8(r61)
+	lw r18, 12(r61)
+	lw r17, 16(r61) #
 	---
-	lw r17, -4(r61) #
-	lw r16, 0(r61) #
-	lw r19, -12(r61)
+	lw r16, 20(r61) #
+	lw r19, -8(r61) #
+	lw r20, 4(r61)
 	---
-	lw r20, -16(r61)
+	addi r61, r61, 20
 	liu r2, EXT4_LAST_EXTENT
 	---
 	be r1, r2, ext4_read_ret
@@ -834,21 +847,21 @@ ext4_read_case1: ; if(extent_block >= ext_len)
 	bez zero, ext4_read_ret
 	---
 ext4_read_case2: ; else if(i < count)
-	sw r16, 0(r61) #
-	sw r17, -4(r61) #
-	sw r18, -8(r61)
+	subi r61, r61, 12 #
+	sw r16, 12(r61) #
+	sw r17, 8(r61)
 	---
-	subi r61, r61, 12
+	sw r18, 4(r61)
 	cpy r16, r29
 	---
 	lipc r60, zero #
 	jalr r60, r60, (ext4_read_block-$)>>4
 	---
-	addi r61, r61, 12 #
-	lw r18, -8(r61) #
-	lw r17, -4(r61)
+	lw r18, 4(r61) #
+	lw r17, 8(r61) #
+	lw r16, 12(r61)
 	---
-	lw r16, 0(r61)
+	addi r61, r61, 12
 	cpy r19, r23
 	bez r23, ext4_read_loop
 	---
@@ -870,14 +883,15 @@ ext4_read_ret:
 	; Returns: success status (r18)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 ext4_open_dir:
-	sw r60, 0(r61) #
-	sw r24, -4(r61) #
-	sw r25, -8(r61)
+	subi r61, r61, 16 #
+	sw r60, 16(r61) #
+	sw r24, 12(r61)
 	---
-	sw r26, -12(r61)
-	subi r61, r61, 16+ext4_dir_entry2_s_length+4
-	subi r26, r61, 16+ext4_dir_entry2_s_length ; data buffer pointer
+	sw r25, 8(r61) #
+	sw r26, 4(r61)
 	---
+	subi r61, r61, ext4_dir_entry2_s_length+4
+	subi r26, r61, ext4_dir_entry2_s_length ; data buffer pointer
 	cpy r25, r16
 	---
 	cpy r24, r17 ; ext4_DIR pointer
@@ -898,11 +912,11 @@ ext4_open_dir:
 	---
 	subi r1, r1, 0x0201 # ; Check file_type and name_len at the same time
 	liu r18, EXT4_BAD_DIR_START
-	bnez r1, ext4_open_dir_ret
+	bnez r1, ext4_open_dir_ret_bad_dot
 	---
 	lhu r1, ext4_dir_entry2_s_length(r26) #
 	subi r1, r1, 0x002E # ; '.'
-	bnez r1, ext4_open_dir_ret
+	bnez r1, ext4_open_dir_ret_bad_dot
 	---
 	lw r1, ext4_dir_entry2_inode(r26) #
 	sw r1, ext4_DIR_dot_inode(r24)
@@ -920,11 +934,11 @@ ext4_open_dir:
 	---
 	subi r1, r1, 0x0202 # ; Check file_type and name_len at the same time
 	liu r18, EXT4_BAD_DIR_START
-	bnez r1, ext4_open_dir_ret
+	bnez r1, ext4_open_dir_ret_bad_dot
 	---
 	lhu r1, ext4_dir_entry2_s_length(r26) #
 	subi r1, r1, 0x2E2E # ; '..'
-	bnez r1, ext4_open_dir_ret
+	bnez r1, ext4_open_dir_ret_bad_dot
 	---
 	lhu r1, ext4_dir_entry2_s_length+2(r26) #
 	bnez r1, ext4_open_dir_ret
@@ -941,25 +955,310 @@ ext4_open_dir:
 ext4_open_dir_ret:
 	cpy r16, r25
 	cpy r17, r24
-	addi r61, r61, 16+ext4_dir_entry2_s_length+4
+	addi r61, r61, ext4_dir_entry2_s_length+4
 	---
-	lw r60, 0(r61) #
-	lw r24, -4(r61) #
-	lw r25, -8(r61)
+	lw r60, 16(r61) #
+	lw r24, 12(r61) #
+	lw r25, 8(r61)
 	---
-	lw r26, -12(r61)
+	lw r26, 4(r61)
+	addi r61, r61, 16
 	jalr zero, r60, 0
+	---
+ext4_open_dir_ret_bad_dot:
+	lliu r16, str_dir_bad_start&0xFFFF
+	lui r16, str_dir_bad_start>>16
+	---
+	lipc r60, zero #
+	jalr r60, r60, (putstr-$)>>4
+	---
+	bez zero, ext4_open_dir_ret
 	---
 
 	; Args: ext4_DIR pointer, name buffer pointer
 	; Returns: inode number (r18), file type (r19), error code (r20)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
+	; name buffer pointer may be null, in which case the name will not be returned
 ext4_dir_next:
+	subi r61, r61, 16 #
+	sw r60, 16(r61) #
+	sw r40, 12(r61)
+	---
+	sw r41, 8(r61) #
+	sw r42, 4(r61)
+	---
+	subi r61, r61, 268
+	subi r40, r61, 264 ; Data buff pointer
+	---
+	cpy r41, r16 ; ext4_DIR pointer
+	cpy r42, r17 ; name buffer pointer
+	---
+ext4_dir_next_loop:
+	lw r1, ext4_FIL_limit+4(r41) #
+	lw r2, ext4_FIL_position+4(r41) #
+	bne r1, r2, ext4_dir_loop_cont
+	---
+	lw r1, ext4_FIL_limit(r41) #
+	lw r2, ext4_FIL_position(r41) #
+	sub r1, r1, r2
+	---
+	liu r20, EXT4_EOF
+	subi r1, r1, 12 #
+	bn r1, ext4_dir_next_ret
+	---
+ext4_dir_loop_cont:
+	cpy r16, r41
+	cpy r17, r40
+	liu r18, ext4_dir_entry2_s_length
+	---
+	lipc r60, zero #
+	jalr r60, r60, (ext4_read-$)>>4
+	---
+	subi r1, r20, ext4_dir_entry2_s_length
+	liu r20, EXT4_BAD_DIR_TREE #
+	bnez r1, ext4_dir_next_ret
+	---
+	cpy r20, r19
+	bnez r19, ext4_dir_next_ret
+	---
+	lw r1, ext4_dir_entry2_inode(r40) #
+	bez r1, ext4_dir_next_loop
+	---
+	lbu r18, ext4_dir_entry2_name_len(r40) #
+	cpy r16, r41
+	---
+	cpy r17, r42
+	lipc r60, zero #
+	jalr r60, r60, (ext4_read-$)>>4
+	---
+	cpy r20, r19
+	bnez r19, ext4_dir_next_ret
+	bez r42, ext4_dir_next_no_name
+	---
+	; Zero-pad at end of string to ensure its always null-terminated
+	lbu r1, ext4_dir_entry2_name_len(r40) #
+	add r2, r1, r42 #
+	sb zero, 0(r2)
+	---
+	; Skip remaining bytes in record
+	lhu r2, ext4_dir_entry2_rec_len(r40) #
+	sub r2, r2, r1 #
+	subi r18, r2, ext4_dir_entry2_s_length
+	---
+	cpy r16, r41
+	xor r17, r1, r1
+	---
+	lipc r60, zero #
+	jalr r60, r60, (ext4_read-$)>>4
+	---
+ext4_dir_next_no_name:
+	lbu r19, ext4_dir_entry2_file_type(r40) #
+	lw r18, ext4_dir_entry2_inode(r40)
+	liu r20, EXT4_OKAY
+	---
+ext4_dir_next_ret:
+	lw r60, 268+16(r61) #
+	lw r40, 268+12(r61) #
+	lw r41, 268+8(r61)
+	---
+	addi r61, r61, 268+16
+	lw r42, 268+4(r61)
+	jalr zero, r60, 0
+	---
 
 	; Args: curr inode, path str pointer
 	; Returns: inode number (r18), file type (r19), error code (r20)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 ext4_path_parser:
+	subi r61, r61, 32 #
+	sw r60, 32(r61) #
+	sw r40, 28(r61)
+	---
+	sw r41, 24(r61) #
+	sw r42, 20(r61) #
+	sw r30, 16(r61)
+	---
+	sw r31, 12(r61) #
+	sw r32, 8(r61) #
+	sw r35, 4(r61)
+	---
+	subi r35, r61, ext4_max_fn+ext4_max_fn+ext4_DIR_s_length-4 ; ext4_DIR_s
+	cpy r40, r17 ; path str pointer
+	---
+	subi r61, r61, ext4_max_fn+ext4_max_fn+ext4_DIR_s_length
+	subi r41, r61, ext4_max_fn-4 ; substr
+	subi r42, r61, ext4_max_fn+ext4_max_fn-4 ; next_name
+	---
+	xor r1, r1, r1 ; i
+	cpy r4, r40 ; path[i]
+	cpy r5, r41 ; substr[i]
+	---
+	liu r30, 0 ; the_end
+	liu r31, 0 ; strlen
+	liu r32, 0 ; should_be_dir
+	---
+ext4_path_parse_loop:
+	subi r2, r1, ext4_max_fn-1 #
+	bnez r2, ext4_path_parse_loop_cont
+	lbu r3, 0(r4)
+	---
+	bez r3, ext4_path_parse_loop_cont
+	---
+	liu r20, EXT4_FN_TOO_LONG
+	subi r2, r3, '/' #
+	bnez r2, ext4_path_parser_ret
+	---
+ext4_path_parse_loop_cont:
+	lbu r3, 0(r4) #
+	subi r3, r3, '/' #
+	bnez r3, ext4_parse_cond0
+	---
+	liu r32, 1
+	lbu r3, 1(r4) #
+	pez p1, r3
+	---
+	liu r30, 1 [p1]
+	bez zero, ext4_path_parse_loop_done
+	---
+ext4_parse_cond0:
+	lbu r3, 0(r4) #
+	bnez r3, ext4_parse_cond1
+	---
+	pez p1, zero
+	liu r30, 1
+	bez zero, ext4_path_parse_loop_done
+	---
+ext4_parse_cond1:
+	addi r31, r31, 1
+	sb r3, 0(r5)
+	addi r1, r1, 1
+	---
+	addi r4, r4, 1
+	addi r5, r5, 1
+	bez zero, ext4_path_parse_loop
+	---
+ext4_path_parse_loop_done:
+	cpy r17, r35
+	lipc r60, zero #
+	jalr r60, r60, (ext4_open_dir-$)>>4
+	---
+	cpy r20, r18
+	bnez r18, ext4_path_parser_ret
+	subi r1, r31, 1
+	---
+	bnez r1, ext4_path_parser_not_dot
+	---
+	lbu r1, 0(r41) #
+	subi r1, r1, '.' #
+	bnez r1, ext4_path_parser_not_dot
+	---
+	lw r18, ext4_DIR_dot_inode(r35)
+	liu r19, 2
+	bez zero, ext4_parse_cond2
+	---
+ext4_path_parser_not_dot:
+	subi r1, r31, 2 #
+	bnez r1, ext4_path_parser_not_dotdot
+	---
+	lbu r1, 0(r41) #
+	subi r1, r1, '.' #
+	bnez r1, ext4_path_parser_not_dotdot
+	---
+	lbu r1, 1(r41) #
+	subi r1, r1, '.' #
+	bnez r1, ext4_path_parser_not_dotdot
+	---
+	lw r18, ext4_DIR_dotdot_inode(r35)
+	liu r19, 2
+	bez zero, ext4_parse_cond2
+	---
+ext4_path_parser_not_dotdot:
+ext4_path_parser_search_loop:
+	cpy r16, r35
+	cpy r17, r42
+	---
+	lipc r60, zero #
+	jalr r60, r60, (ext4_dir_next-$)>>4
+	---
+	subi r1, r20, EXT4_EOF #
+	pez p1, r1
+	liu r2, 0 ; i
+	---
+	liu r20, EXT4_FILE_NOT_FOUND [p1]
+	bnez r20, ext4_path_parser_ret
+	liu r1, 1 ; found
+	---
+	cpy r3, r42 ; next_name[i]
+	cpy r4, r41 ; substr[i]
+	---
+ext4_path_parser_comp_loop:
+	lbu r5, 0(r3) #
+	lbu r6, 0(r4) #
+	bez r5, ext4_path_parser_comp_loop_fail
+	---
+	be r5, r6, ext4_path_parser_comp_loop_continue
+	---
+ext4_path_parser_comp_loop_fail:
+	liu r1, 0
+	bez zero, ext4_path_parser_comp_loop_done
+	---
+ext4_path_parser_comp_loop_continue:
+	sub r5, r31, r2 #
+	bne r5, r1, ext4_path_parser_comp_loop_cond
+	---
+	lbu r5, 1(r3) #
+	bez r5, ext4_path_parser_comp_loop_done
+	---
+ext4_path_parser_comp_loop_cond:
+	addi r2, r2, 1
+	addi r3, r3, 1
+	sub r5, r2, r31
+	---
+	addi r4, r4, 1
+	bnez r5, ext4_path_parser_comp_loop
+	---
+ext4_path_parser_comp_loop_done:
+	bez r1, ext4_path_parser_search_loop
+	bez r32, ext4_parse_cond2
+	subi r5, r19, 2
+	---
+	bnez r5, ext4_path_parser_ret
+	liu r20, EXT4_FILE_NOT_FOUND
+	---
+ext4_parse_cond2:
+	liu r20, EXT4_INCOMPAT
+	subi r5, r19, 7 #
+	bez r5, ext4_path_parser_ret
+	---
+	liu r20, EXT4_OKAY
+	bnez r30, ext4_path_parser_ret
+	cpy r16, r18
+	---
+	addi r61, r61, ext4_max_fn+ext4_max_fn+ext4_DIR_s_length
+	add r17, r40, r31 #
+	addi r17, r17, 1
+	---
+	lipc r60, zero #
+	jalr r60, r60, (ext4_path_parser-$)>>4
+	---
+	subi r61, r61, ext4_max_fn+ext4_max_fn+ext4_DIR_s_length
+	---
+ext4_path_parser_ret:
+	addi r61, r61, ext4_max_fn+ext4_max_fn+ext4_DIR_s_length #
+	lw r60, 32(r61) #
+	lw r40, 28(r61)
+	---
+	lw r41, 24(r61) #
+	lw r42, 20(r61) #
+	lw r30, 16(r61)
+	---
+	lw r31, 12(r61) #
+	lw r32, 8(r61) #
+	lw r35, 4(r61)
+	---
+	addi r61, r61, 32
+	jalr zero, r60, 0
+	---
 
 	; Args: curr inode, path str pointer
 	; Returns: inode number (r18), file type (r19), error code (r20)
@@ -982,9 +1281,12 @@ ext4_find_file_ret:
 	; Returns: error code (r16)
 	; Uses: r1, r2, r3, r4, r5, r6, r7
 ext4_mount:
-	sw r24, 0(r61) #
-	sw r60, -4(r61)
-	subi r61, r61, 8
+	subi r61, r61, 16 #
+	sw r24, 16(r61) #
+	sw r60, 12(r61)
+	---
+	sw r25, 8(r61) #
+	sw r26, 4(r61)
 	---
 	
 	liu r1, 0
@@ -1120,32 +1422,6 @@ ext4_no_64bit:
 	jalr r60, r60, (newl_cachef-$)>>4
 	---
 	
-	liu r16, 2
-	subi r61, r61, ext4_FIL_s_length
-	subi r24, r61, ext4_FIL_s_length-4
-	---
-	cpy r17, r24
-	lipc r60, zero #
-	jalr r60, r60, (ext4_open_read-$)>>4
-	---
-	
-	cpy r16, r24
-	liu r18, 64
-	---
-	subi r61, r61, 64
-	subi r17, r61, 60
-	---
-	lipc r60, zero #
-	jalr r60, r60, (ext4_read-$)>>4
-	---
-	addi r17, r61, 4
-	addi r61, r61, 64
-	---
-	lw r16, 8(r17)
-	lipc r60, zero #
-	jalr r60, r60, (puthex32_cachef-$)>>4
-	---
-	
 	lliu r16, str_listing_root&0xFFFF
 	lui r16, str_listing_root>>16
 	---
@@ -1153,14 +1429,119 @@ ext4_no_64bit:
 	jalr r60, r60, (putstr-$)>>4
 	---
 	
-	addi r61, r61, ext4_FIL_s_length
+	liu r16, 2
+	---
+	subi r25, r61, ext4_DIR_s_length+ext4_max_fn-4
+	subi r61, r61, ext4_DIR_s_length+ext4_max_fn
+	subi r24, r61, ext4_DIR_s_length-4
+	---
+	cpy r17, r24
+	lipc r60, zero #
+	jalr r60, r60, (ext4_open_dir-$)>>4
+	---
+	bez r18, ext4_m_dir_no_err
+	lliu r16, str_dir_read_error_could_not_open&0xFFFF
+	lui r16, str_dir_read_error_could_not_open>>16
+	---
+	lipc r60, zero #
+	jalr r60, r60, (putstr-$)>>4
+	---
+	cpy r16, r18
+	bez zero, ext4_m_dir_ret
+	---
+ext4_m_dir_no_err:
+	liu r26, 1
+	---
+ext4_list_loop:
+	cpy r16, r24
+	cpy r17, r25
+	---
+	lipc r60, zero #
+	jalr r60, r60, (ext4_dir_next-$)>>4
+	---
+	subi r1, r20, EXT4_EOF #
+	liu r16, EXT4_OKAY
+	bez r1, ext4_m_dir_ret
+	---
+	cpy r16, r20
+	bnez r20, ext4_m_dir_ret
+	---
+	cpy r16, r25
+	lipc r60, zero #
+	jalr r60, r60, (putstr-$)>>4
+	---
+	
+	subi r26, r26, 1
+	bp r26, ext4_list_no_slash
+	subi r19, r19, 2
+	---
+	liu r2, 0
+	bnez r19, ext4_list_no_slash
+	---
+	liu r16, '/'
+	lipc r60, zero #
+	jalr r60, r60, (putchar_cachef-$)>>4
+	---
+	liu r2, 1
+	---
+ext4_list_no_slash:
+	cpy r16, r25
+	lipc r60, zero #
+	jalr r60, r60, (strlen-$)>>4
+	---
+	add r17, r2, r17
+	---
+	liu r1, 14 #
+	sub r17, r1, r17 #
+	ples p1, r17, zero
+	---
+	liu r17, 1 [p1]
+	---
+ext4_list_spaces_loop:
+	liu r16, ' '
+	lipc r60, zero #
+	jalr r60, r60, (putchar_cachef-$)>>4
+	---
+	subi r17, r17, 1 #
+	bnez r17, ext4_list_spaces_loop
+	---
+	liu r16, '-'
+	lipc r60, zero #
+	jalr r60, r60, (putchar_cachef-$)>>4
+	---
+	liu r16, '>'
+	lipc r60, zero #
+	jalr r60, r60, (putchar_cachef-$)>>4
+	---
+	liu r16, ' '
+	lipc r60, zero #
+	jalr r60, r60, (putchar_cachef-$)>>4
+	---
+	cpy r16, r18
+	lipc r60, zero #
+	jalr r60, r60, (puthex32_cachef-$)>>4
+	---
+	lipc r60, zero #
+	jalr r60, r60, (newl_cachef-$)>>4
+	---
+	bez zero, ext4_list_loop
+	---
+	
 	liu r16, EXT4_OKAY
 	---
-ext4_mount_ret:
-	lw r60, 4(r61) #
-	lw r24, 8(r61)
-	addi r61, r61, 8
+ext4_m_dir_ret:
+	addi r61, r61, ext4_DIR_s_length+ext4_max_fn
 	---
+ext4_mount_ret:
+	lipc r60, zero #
+	jalr r60, r60, (newl_cachef-$)>>4
+	---
+	lw r26, 4(r61) #
+	lw r25, 8(r61) #
+	lw r60, 12(r61)
+	---
+	lw r24, 16(r61)
+	addi r61, r61, 8
 	jalr zero, r60, 0
 	---
 ext4_mount_bad_sb_ret:
@@ -1213,7 +1594,7 @@ ext4_sb_feature_incompat:
 ext4_sb_feature_ro_compat:
 	dd 0
 ext4_blockbuff:
-	dd 0 ; TODO: can remove this?
+	dd 0x06210621
 	org $+4096
 	dd 0
 	dd 0x69696969

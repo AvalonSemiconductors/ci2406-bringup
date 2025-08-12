@@ -140,7 +140,6 @@ start:
 	lipc r60, zero #
 	jalr r60, r60, (newl_cachef-$)>>4
 	---
-	
 ;	lliu r17, ext4_partition_start&0xFFFF
 ;	lui r17, ext4_partition_start>>16 #
 ;	lw r17, 0(r17)
@@ -202,7 +201,7 @@ blink:
 	---
 	nop
 	lli r3, 1 #
-	sw r3, ICEN(r62) # ; Enable icache
+	sw r3, ICEN(r62) ; Enable icache
 	---
 	lli r51, (puthex32_cachef-$-16)>>4
 	lli r52, (newl_cachef-$-16)>>4
