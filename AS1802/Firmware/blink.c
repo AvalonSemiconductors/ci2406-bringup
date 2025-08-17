@@ -159,7 +159,7 @@ void error_out() {
 		reg_gpio_out = 1;
 		delay(1000000);
 		reg_gpio_out = 0;
-		delay(700000);
+		delay(70000);
 	}
 }
 
@@ -228,11 +228,6 @@ void main() {
 	uint32_t val = 0xAAAAAAAA;
 	
 	configure_io_mgmt(0);
-	while(1) {
-		set_addr(val);
-		delay(28000000);
-		val = ~val;
-	}
 	
 	for(uint32_t i = 0; i < pgm_len; i++) {
 		val = pgm[i >> 1];
@@ -257,7 +252,8 @@ void main() {
 	}
 	
 	configure_io_as1802();
-	reg_mprj_proj_sel = 0b10011;
+	reg_mprj_settings = 0x04000000;
+	reg_mprj_proj_sel = 0b10111;
 	reg_gpio_out = 0;
     
     while(1) {

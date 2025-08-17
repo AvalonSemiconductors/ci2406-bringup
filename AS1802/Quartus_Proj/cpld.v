@@ -7,9 +7,9 @@ module as1802_cs(
 	input A15,
 	input MRD_b,
 	input MWR_b,
-	output LED,
+	output LED = 0,
 	inout [7:0] D,
-	output reg [7:0] PORTA,
+	output reg [7:0] PORTA = 0,
 	input [7:0] PORTB,
 	output TXD,
 	input RXD,
@@ -43,7 +43,7 @@ reg t_flag = 1;
 assign EF_b = ~{uart_busy, spi_busy, uart_has_byte, t_flag};
 
 wire write_cond = !MWR_b && A15;
-wire read_cond = !MRD_b && A15;
+wire read_cond = !MRD_b && A15 && !write_cond;
 
 reg timer_on = 0;
 reg [2:0] tdiv = 0;
@@ -51,7 +51,7 @@ reg uart_int_en = 0;
 reg tmr_int_en = 0;
 
 always @(posedge xclk) begin
-	tdiv = tdiv + 1;
+	tdiv <= tdiv + 1;
 	if(tdiv == 0 && timer_on) timer <= timer + 1;
 	if(timer == ttop) begin
 		timer <= 0;
@@ -78,7 +78,7 @@ wire [7:0] uart_dout;
 wire uart_busy;
 wire uart_has_byte;
 uart uart(
-	.divisor(436), //max 4095
+	.divisor(235), //max 4095
 	.din(D),
 	.dout(uart_dout),
 	.TX(TXD),
