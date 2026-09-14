@@ -14,7 +14,7 @@ void delay(const int d) {
 		reg_timer0_config = 0;
 		reg_timer0_data = d;
 		reg_timer0_config = 1;
-
+		
 		reg_timer0_update = 1;
 		while (reg_timer0_value > 0) {
 			reg_timer0_update = 1;
@@ -26,11 +26,11 @@ uint32_t datal_shadow;
 
 void configure_io_mgmt(uint8_t input) {
 	reg_mprj_io_0 = GPIO_MODE_USER_STD_INPUT_NOPULL;
-    reg_mprj_io_1 = GPIO_MODE_MGMT_STD_INPUT_NOPULL;
-    reg_mprj_io_2 = GPIO_MODE_MGMT_STD_INPUT_NOPULL;
-    reg_mprj_io_3 = GPIO_MODE_MGMT_STD_INPUT_PULLUP;
-    reg_mprj_io_4 = GPIO_MODE_MGMT_STD_INPUT_NOPULL;
-    if(input) {
+	reg_mprj_io_1 = GPIO_MODE_MGMT_STD_INPUT_NOPULL;
+	reg_mprj_io_2 = GPIO_MODE_MGMT_STD_INPUT_NOPULL;
+	reg_mprj_io_3 = GPIO_MODE_MGMT_STD_INPUT_PULLUP;
+	reg_mprj_io_4 = GPIO_MODE_MGMT_STD_INPUT_NOPULL;
+	if(input) {
 		reg_mprj_io_5 = GPIO_MODE_MGMT_STD_INPUT_PULLDOWN;
 		reg_mprj_io_6 = GPIO_MODE_MGMT_STD_INPUT_PULLDOWN;
 		reg_mprj_io_7 = GPIO_MODE_MGMT_STD_INPUT_PULLDOWN;
@@ -90,10 +90,10 @@ void configure_io_mgmt(uint8_t input) {
 
 void configure_io_vliw() {
 	reg_mprj_io_0 = GPIO_MODE_USER_STD_INPUT_NOPULL;
-    reg_mprj_io_1 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
-    reg_mprj_io_2 = GPIO_MODE_USER_STD_OUTPUT;
-    reg_mprj_io_3 = GPIO_MODE_MGMT_STD_INPUT_PULLUP;
-    reg_mprj_io_4 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
+	reg_mprj_io_1 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
+	reg_mprj_io_2 = GPIO_MODE_USER_STD_OUTPUT;
+	reg_mprj_io_3 = GPIO_MODE_MGMT_STD_INPUT_PULLUP;
+	reg_mprj_io_4 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
 	reg_mprj_io_5 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
 	reg_mprj_io_6 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
 	reg_mprj_io_7 = GPIO_MODE_USER_STD_BIDIRECTIONAL;
@@ -140,21 +140,21 @@ void configure_io_vliw() {
 
 void main() {
 	reg_spi_enable = 0;
-    reg_gpio_mode1 = 1;
-    reg_gpio_mode0 = 0;
-    reg_gpio_ien = 1;
-    reg_gpio_oe = 1;
-    reg_gpio_out = 0;
-    datal_shadow = OEB + WEBLO + WEBHI;
+	reg_gpio_mode1 = 1;
+	reg_gpio_mode0 = 0;
+	reg_gpio_ien = 1;
+	reg_gpio_oe = 1;
+	reg_gpio_out = 0;
+	datal_shadow = OEB + WEBLO + WEBHI;
 	(*(volatile uint32_t*)0x2d000000) = (1 << 31) | (2 << 16); //Less wait states
-    reg_mprj_datal = datal_shadow;
-    configure_io_mgmt(1);
-    
-    reg_uart_enable = 0;
-    reg_wb_enable = 1;
-    //reg_mprj_settings = 0b10001;
-    reg_mprj_settings = 0b10001;
-    //Cache bug workaround
+	reg_mprj_datal = datal_shadow;
+	configure_io_mgmt(1);
+	
+	reg_uart_enable = 0;
+	reg_wb_enable = 1;
+	reg_mprj_settings = 0b10001;
+	//reg_mprj_settings = 0b11001;
+	//Cache bug workaround
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
@@ -180,7 +180,7 @@ void main() {
 	asm volatile("nop");
 	delay(1000000);
 	reg_mprj_proj_sel = 0b01111;
-    //Cache bug workaround
+	//Cache bug workaround
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
@@ -206,16 +206,36 @@ void main() {
 	asm volatile("nop");
 	
 	configure_io_mgmt(0);
-	uint32_t val;
-	for(uint32_t i = 0; i < pgm_len; i++) {
-		reg_gpio_out = (i & 16) != 0;
-		val = pgm[i];
+	uint32_t val = 0;
+	
+	/*while(1) {
 		datal_shadow &= ~(0xFFFF << 5);
-		datal_shadow |= (i >> 16) << 5;
-		datal_shadow |= LE_HI;
-		reg_mprj_datal = datal_shadow;
-		datal_shadow &= ~LE_HI;
-		reg_mprj_datal = datal_shadow;
+		datal_shadow |= (val & 0xFFFF) << 5;
+		if((val & 1) != 0) {
+			datal_shadow |= LE_HI;
+			reg_mprj_datal = datal_shadow;
+			datal_shadow &= ~LE_HI;
+			reg_mprj_datal = datal_shadow;
+		}else {
+			datal_shadow |= LE_LO;
+			reg_mprj_datal = datal_shadow;
+			datal_shadow &= ~LE_LO;
+			reg_mprj_datal = datal_shadow;
+		}
+		datal_shadow &= ~(WEBLO + WEBHI);
+		val++;
+	}*/
+	for(uint32_t i = 0; i < pgm_len; i++) {
+		reg_gpio_out = (i & 128) != 0;
+		val = pgm[i];
+		if((i & 0xFFFF) == 0) {
+			datal_shadow &= ~(0xFFFF << 5);
+			datal_shadow |= (i >> 16) << 5;
+			datal_shadow |= LE_HI;
+			reg_mprj_datal = datal_shadow;
+			datal_shadow &= ~LE_HI;
+			reg_mprj_datal = datal_shadow;
+		}
 		datal_shadow &= ~(0xFFFF << 5);
 		datal_shadow |= (i & 0xFFFF) << 5;
 		datal_shadow |= LE_LO;
@@ -230,15 +250,16 @@ void main() {
 		reg_mprj_datal = datal_shadow;
 	}
 	reg_gpio_out = 0;
-	configure_io_mgmt(0);
+	
+	configure_io_mgmt(1);
 	configure_io_vliw();
 	asm volatile("nop");
 	delay(100000);
 	asm volatile("nop");
 	reg_mprj_proj_sel = 0b01101;
 	reg_mprj_proj_sel = 0b01100;
-    
-    while(1) {
+	
+	while(1) {
 		reg_gpio_out = 1; //ON
 		#ifdef BROKEN_CHIP
 		delay(10000000);
